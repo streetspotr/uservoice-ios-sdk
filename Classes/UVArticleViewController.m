@@ -28,8 +28,10 @@
     self.navigationItem.title = @"";
 
     CGFloat footerHeight = 46;
-    _webView = [UIWebView new];
-    _webView.delegate = self;
+    WKWebViewConfiguration *configuration = [[WKWebViewConfiguration alloc] init];
+    _webView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:configuration];
+    _webView.navigationDelegate = self;
+    _webView.translatesAutoresizingMaskIntoConstraints = NO;
     NSString *section = _article.topicName ? [NSString stringWithFormat:@"%@ / %@", NSLocalizedStringFromTableInBundle(@"Knowledge Base", @"UserVoice", [UserVoice bundle], nil), _article.topicName] : NSLocalizedStringFromTableInBundle(@"Knowledge base", @"UserVoice", [UserVoice bundle], nil);
     NSString *linkColor;
     if (IOS7) {
@@ -45,8 +47,6 @@
         }
     }
     [_webView loadHTMLString:html baseURL:nil];
-    _webView.scrollView.contentInset = UIEdgeInsetsMake(0, 0, footerHeight, 0);
-    _webView.scrollView.scrollIndicatorInsets = UIEdgeInsetsMake(0, 0, footerHeight, 0);
 
     UIView *footer = [UIView new];
     footer.backgroundColor = [UIColor colorWithRed:0.97f green:0.97f blue:0.97f alpha:1.0f];
@@ -81,19 +81,23 @@
 
     [self configureView:self.view
                subviews:NSDictionaryOfVariableBindings(_webView, footer, bg)
-            constraints:@[@"V:|[_webView]|", @"V:[footer][bg]|", @"|[_webView]|", @"|[footer]|", @"|[bg]|"]];
+            constraints:@[@"V:|[_webView][footer][bg]|", @"|[_webView]|", @"|[footer]|", @"|[bg]|"]];
     [self.view addConstraint:[footer.heightAnchor constraintEqualToConstant:footerHeight]];
     [self.view addConstraint:[footer.bottomAnchor constraintEqualToAnchor:self.view.readableContentGuide.bottomAnchor]];
     [self.view bringSubviewToFront:footer];
     [self.view bringSubviewToFront:bg];
 }
 
-
-- (BOOL)webView:(UIWebView *)view shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
-    if (navigationType == UIWebViewNavigationTypeLinkClicked) {
-        return ![[UIApplication sharedApplication] openURL:request.URL];
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
+    if (navigationAction.navigationType == WKNavigationTypeLinkActivated) {
+        if ([[UIApplication sharedApplication] openURL:navigationAction.request.URL]) {
+            decisionHandler(WKNavigationActionPolicyCancel);
+        } else {
+            decisionHandler(WKNavigationActionPolicyAllow);
+        }
+    } else {
+        decisionHandler(WKNavigationActionPolicyAllow);
     }
-    return YES;
 }
 
 - (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex {
